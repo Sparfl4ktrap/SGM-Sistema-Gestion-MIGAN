@@ -1,0 +1,159 @@
+
+USE sgm_arif;
+
+SELECT
+    c.TABLE_NAME AS 'TABLA',
+
+    CASE c.TABLE_NAME
+        WHEN 'Proveedor' THEN 'Almacena la información de los proveedores.'
+        WHEN 'Cliente' THEN 'Registra los datos personales y de contacto de los clientes.'
+        WHEN 'Usuario' THEN 'Almacena las cuentas y roles de los usuarios del sistema.'
+        WHEN 'Sesion' THEN 'Registra las sesiones de acceso de usuarios y clientes.'
+        WHEN 'Categoria' THEN 'Clasifica los productos según su categoría.'
+        WHEN 'Producto' THEN 'Almacena el catálogo de productos comercializados.'
+        WHEN 'Metodo_Pago' THEN 'Registra los métodos disponibles para realizar pagos.'
+        WHEN 'Pasarela_Pago' THEN 'Almacena las plataformas utilizadas para procesar pagos.'
+        WHEN 'Compra' THEN 'Registra las compras realizadas a los proveedores.'
+        WHEN 'Detalle_Compra' THEN 'Almacena los productos y cantidades de cada compra.'
+        WHEN 'Venta' THEN 'Registra las ventas realizadas a los clientes.'
+        WHEN 'Detalle_Venta' THEN 'Almacena los productos y cantidades de cada venta.'
+        WHEN 'Inventario' THEN 'Controla las existencias y niveles mínimos de productos.'
+        WHEN 'Movimiento_Inventario' THEN 'Registra las entradas, salidas y ajustes de inventario.'
+        WHEN 'Alerta_Stock' THEN 'Registra las alertas relacionadas con las existencias.'
+        WHEN 'Historial' THEN 'Almacena el registro de modificaciones realizadas en el sistema.'
+        WHEN 'Reporte' THEN 'Registra los reportes generados y sus formatos de exportación.'
+        WHEN 'Aparato' THEN 'Registra los equipos recibidos para diagnóstico o reparación.'
+        WHEN 'Servicio' THEN 'Administra los servicios técnicos solicitados por los clientes.'
+        WHEN 'Encuesta_Satisfaccion' THEN 'Registra las calificaciones y opiniones de los clientes.'
+        WHEN 'Orden_Pago' THEN 'Registra las órdenes de pago asociadas a ventas o servicios.'
+        WHEN 'Pago' THEN 'Almacena los pagos y abonos realizados por los clientes.'
+        WHEN 'Recibo' THEN 'Registra los comprobantes generados para los pagos.'
+    END AS 'DESCRIPCION_TABLA',
+
+    c.COLUMN_NAME AS 'CAMPO',
+    c.COLUMN_TYPE AS 'TIPO_DATO',
+
+    CASE c.IS_NULLABLE
+        WHEN 'YES' THEN 'SI'
+        ELSE 'NO'
+    END AS 'PERMITE_NULOS',
+
+    CASE
+        WHEN c.COLUMN_KEY = 'PRI' THEN 'PK'
+        WHEN k.REFERENCED_TABLE_NAME IS NOT NULL THEN 'FK'
+        WHEN c.COLUMN_KEY = 'UNI' THEN 'UNIQUE'
+        ELSE 'NO'
+    END AS 'CLAVE',
+
+    k.REFERENCED_TABLE_NAME AS 'TABLA_REFERENCIADA',
+    k.REFERENCED_COLUMN_NAME AS 'CAMPO_REFERENCIADO',
+    c.COLUMN_DEFAULT AS 'VALOR_PREDETERMINADO',
+
+    CASE c.COLUMN_NAME
+        WHEN 'id_proveedor' THEN 'Identificador único del proveedor.'
+        WHEN 'id_cliente' THEN 'Identificador único del cliente.'
+        WHEN 'id_usuario' THEN 'Identificador del usuario responsable de la operación.'
+        WHEN 'id_sesion' THEN 'Identificador único de la sesión.'
+        WHEN 'id_categoria' THEN 'Identificador de la categoría del producto.'
+        WHEN 'id_producto' THEN 'Identificador único del producto.'
+        WHEN 'id_metodo_pago' THEN 'Identificador del método de pago utilizado.'
+        WHEN 'id_pasarela' THEN 'Identificador de la pasarela de pago utilizada.'
+        WHEN 'id_compra' THEN 'Identificador de la compra realizada.'
+        WHEN 'id_detalle_compra' THEN 'Identificador del detalle de compra.'
+        WHEN 'id_venta' THEN 'Identificador de la venta realizada.'
+        WHEN 'id_detalle_venta' THEN 'Identificador del detalle de venta.'
+        WHEN 'id_inventario' THEN 'Identificador único del registro de inventario.'
+        WHEN 'id_movimiento' THEN 'Identificador del movimiento de inventario.'
+        WHEN 'id_alerta' THEN 'Identificador único de la alerta de stock.'
+        WHEN 'id_historial' THEN 'Identificador único del registro histórico.'
+        WHEN 'id_reporte' THEN 'Identificador único del reporte.'
+        WHEN 'id_aparato' THEN 'Identificador único del equipo recibido.'
+        WHEN 'id_servicio' THEN 'Identificador único del servicio técnico.'
+        WHEN 'id_encuesta' THEN 'Identificador único de la encuesta.'
+        WHEN 'id_orden_pago' THEN 'Identificador único de la orden de pago.'
+        WHEN 'id_pago' THEN 'Identificador único del pago.'
+        WHEN 'id_recibo' THEN 'Identificador único del recibo.'
+
+        WHEN 'nombre' THEN 'Nombre del proveedor, cliente, usuario, categoría o producto, según la tabla.'
+        WHEN 'telefono' THEN 'Número telefónico de contacto.'
+        WHEN 'correo' THEN 'Dirección de correo electrónico de contacto o acceso.'
+        WHEN 'direccion' THEN 'Dirección física del cliente o proveedor.'
+        WHEN 'contrasena_hash' THEN 'Contraseña almacenada mediante un mecanismo de hash.'
+        WHEN 'rol' THEN 'Rol que determina los permisos y funciones del usuario.'
+        WHEN 'departamento' THEN 'Área o departamento al que pertenece el usuario.'
+        WHEN 'especialidad' THEN 'Área técnica de especialización del usuario.'
+        WHEN 'fecha_inicio' THEN 'Fecha y hora de inicio de la sesión.'
+        WHEN 'fecha_fin' THEN 'Fecha y hora de finalización de la sesión.'
+        WHEN 'descripcion' THEN 'Descripción detallada del producto o categoría.'
+        WHEN 'estado' THEN 'Estado actual del registro según las opciones permitidas en la tabla.'
+        WHEN 'estado_compra' THEN 'Estado del proceso de compra.'
+        WHEN 'estado_venta' THEN 'Estado actual del proceso de venta.'
+        WHEN 'estado_envio' THEN 'Estado del envío del recibo.'
+        WHEN 'nombre_pasarela' THEN 'Nombre de la plataforma de procesamiento de pagos.'
+        WHEN 'requiere_pasarela' THEN 'Indica si el método de pago requiere una pasarela electrónica.'
+        WHEN 'id_tecnico' THEN 'Identificador del usuario asignado como técnico responsable.'
+        WHEN 'fecha_compra' THEN 'Fecha y hora en que se registra la compra.'
+        WHEN 'fecha_confirmacion' THEN 'Fecha y hora de confirmación de la operación.'
+        WHEN 'total_compra' THEN 'Valor monetario total de la compra.'
+        WHEN 'cantidad' THEN 'Cantidad de unidades involucradas en la operación.'
+        WHEN 'valor_unitario' THEN 'Precio correspondiente a una unidad del producto.'
+        WHEN 'subtotal' THEN 'Resultado de multiplicar la cantidad por el valor unitario.'
+        WHEN 'stock_actual' THEN 'Existencias registradas después de la operación de compra.'
+        WHEN 'fecha_venta' THEN 'Fecha y hora en que se registra la venta.'
+        WHEN 'total_venta' THEN 'Valor monetario total de la venta.'
+        WHEN 'cantidad_disponible' THEN 'Número de unidades disponibles actualmente en inventario.'
+        WHEN 'stock_minimo' THEN 'Cantidad mínima de existencias establecida para el producto.'
+        WHEN 'ubicacion' THEN 'Lugar físico donde se almacena el producto.'
+        WHEN 'fecha_actualizacion' THEN 'Fecha y hora de la última actualización del inventario.'
+        WHEN 'tipo_movimiento' THEN 'Clasificación del movimiento como entrada o salida.'
+        WHEN 'motivo' THEN 'Causa que origina el movimiento de inventario.'
+        WHEN 'fecha_movimiento' THEN 'Fecha y hora en que se registra el movimiento.'
+        WHEN 'observaciones' THEN 'Información adicional relacionada con el movimiento.'
+        WHEN 'cantidad_registrada' THEN 'Cantidad de existencias registrada al generar la alerta.'
+        WHEN 'fecha_alerta' THEN 'Fecha y hora de generación de la alerta.'
+        WHEN 'tabla_afectada' THEN 'Nombre de la tabla donde se realizó la modificación.'
+        WHEN 'id_registro' THEN 'Identificador del registro que fue modificado.'
+        WHEN 'tipo_modificacion' THEN 'Tipo de acción realizada sobre el registro.'
+        WHEN 'detalle' THEN 'Descripción de los cambios realizados.'
+        WHEN 'fecha_modificacion' THEN 'Fecha y hora en que se realizó la modificación.'
+        WHEN 'tipo' THEN 'Clasificación del aparato, servicio, reporte u otro registro, según la tabla.'
+        WHEN 'fecha_reporte' THEN 'Fecha y hora de generación del reporte.'
+        WHEN 'datos' THEN 'Contenido o información incluida en el reporte.'
+        WHEN 'formato_exportacion' THEN 'Formato utilizado para exportar el reporte.'
+        WHEN 'fecha_exportacion' THEN 'Fecha y hora de exportación del reporte.'
+        WHEN 'marca' THEN 'Fabricante o marca del equipo recibido.'
+        WHEN 'modelo' THEN 'Modelo específico del aparato.'
+        WHEN 'numero_serie' THEN 'Código de identificación serial del aparato.'
+        WHEN 'falla_reportada' THEN 'Descripción del problema informado por el cliente.'
+        WHEN 'fecha_ingreso' THEN 'Fecha y hora de recepción del aparato para servicio técnico.'
+        WHEN 'diagnostico' THEN 'Resultado de la evaluación técnica realizada al aparato.'
+        WHEN 'valor_servicio' THEN 'Valor monetario cobrado por el servicio técnico.'
+        WHEN 'fecha_entrega' THEN 'Fecha y hora de entrega del aparato reparado.'
+        WHEN 'calificacion' THEN 'Puntuación otorgada por el cliente entre 1 y 5.'
+        WHEN 'comentarios' THEN 'Opinión o comentarios del cliente sobre el servicio.'
+        WHEN 'fecha_encuesta' THEN 'Fecha y hora en que se registra la encuesta.'
+        WHEN 'fecha_orden' THEN 'Fecha y hora de creación de la orden de pago.'
+        WHEN 'costo_total' THEN 'Valor total que debe pagarse por la venta o servicio.'
+        WHEN 'tipo_pago' THEN 'Indica si el pago corresponde a un abono o al pago total.'
+        WHEN 'monto' THEN 'Cantidad monetaria recibida en el pago.'
+        WHEN 'fecha_pago' THEN 'Fecha y hora en que se registra el pago.'
+        WHEN 'token_transaccion' THEN 'Código de identificación de la transacción electrónica.'
+        WHEN 'numero_recibo' THEN 'Número único asignado al comprobante de pago.'
+        WHEN 'fecha_emision' THEN 'Fecha y hora de emisión del recibo.'
+        WHEN 'detalles_adicionales' THEN 'Información complementaria incluida en el recibo.'
+        WHEN 'canal_envio' THEN 'Medio utilizado para enviar el recibo al cliente.'
+        WHEN 'fecha_envio' THEN 'Fecha y hora de envío del recibo.'
+        ELSE CONCAT('Campo ', c.COLUMN_NAME, ' correspondiente a la tabla ', c.TABLE_NAME, '.')
+    END AS 'DESCRIPCION_CAMPO'
+
+FROM INFORMATION_SCHEMA.COLUMNS c
+
+LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
+    ON c.TABLE_SCHEMA = k.TABLE_SCHEMA
+    AND c.TABLE_NAME = k.TABLE_NAME
+    AND c.COLUMN_NAME = k.COLUMN_NAME
+    AND k.REFERENCED_TABLE_NAME IS NOT NULL
+
+WHERE c.TABLE_SCHEMA = 'sgm_arif'
+
+ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION;
