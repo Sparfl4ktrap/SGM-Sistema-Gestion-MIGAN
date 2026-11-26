@@ -617,7 +617,123 @@ INSERT INTO Reporte (id_reporte, id_usuario, tipo, fecha_reporte, datos, formato
   (8, 2, 'Stock mínimo', '2026-11-20 08:15:00', 'Productos en o bajo el stock mínimo', 'CSV', '2026-11-20 08:20:00'),
   (9, 9, 'Existencias', '2026-11-22 17:30:00', 'Existencias por categoría', NULL, NULL),
   (10, 2, 'Stock mínimo', '2026-11-24 08:10:00', 'Alertas activas de stock mínimo', 'PDF', '2026-11-24 08:14:00');
+USE sgm_arif;
+SET NAMES utf8mb4;
 
+
+CREATE OR REPLACE VIEW vw_catalogo_inventario AS
+SELECT p.id_producto,
+       p.nombre                              AS producto,
+       c.nombre                              AS categoria,
+       IFNULL(pr.nombre, 'Sin proveedor')    AS proveedor,
+       p.precio_unitario,
+       p.estado                              AS estado_producto,
+       i.cantidad_disponible,
+       i.stock_minimo,
+       i.ubicacion,
+       CASE
+            WHEN i.cantidad_disponible = 0                  THEN 'Agotado'
+            WHEN i.cantidad_disponible <= i.stock_minimo    THEN 'Stock bajo'
+            ELSE 'Disponible'
+       END                                   AS estado_stock,
+       (SELECT COUNT(*)
+          FROM Alerta_Stock a
+         WHERE a.id_producto = p.id_producto
+           AND a.estado = 'Activa')          AS alertas_activas
+FROM Producto p
+INNER JOIN Categoria c   ON c.id_categoria = p.id_categoria
+LEFT  JOIN Proveedor pr  ON pr.id_proveedor = p.id_proveedor
+INNER JOIN Inventario i  ON i.id_producto = p.id_producto;
+
+SELECT * FROM vw_catalogo_inventario ORDER BY categoria, producto;
+
+
+CREATE OR REPLACE VIEW vw_servicios_tecnicos AS
+SELECT s.id_servicio,
+       s.fecha_ingreso,
+       s.fecha_entrega,
+       s.id_cliente,
+       cl.nombre                               AS cliente,
+       a.tipo                                  AS tipo_equipo,
+       a.marca,
+       a.modelo,
+       a.falla_reportada,
+       s.diagnostico,
+       s.estado                                AS estado_servicio,
+       s.valor_servicio,
+       s.id_tecnico,
+       IFNULL(tec.nombre, 'Sin asignar')       AS tecnico,
+       IFNULL(tec.especialidad, 'N/A')         AS especialidad,
+       e.calificacion                          AS calificacion_encuesta
+FROM Servicio s
+INNER JOIN Cliente cl               ON cl.id_cliente = s.id_cliente
+INNER JOIN Aparato a                ON a.id_aparato  = s.id_aparato
+LEFT  JOIN Usuario tec              ON tec.id_usuario = s.id_tecnico
+LEFT  JOIN Encuesta_Satisfaccion e  ON e.id_servicio = s.id_servicio;
+
+SELECT * FROM vw_servicios_tecnicos ORDER BY fecha_ingreso DESC;
+
+
+
+CREATE OR REPLACE VIEW vw_resumen_ordenes_pago AS
+SELECT o.id_orden_pago,
+       o.fecha_orden,
+       cl.nombre                                   AS cliente,
+       CASE WHEN o.id_venta IS NOT NULL
+            THEN CONCAT('Venta #', o.id_venta)
+            ELSE CONCAT('Servicio #', o.id_servicio)
+       END                                         AS origen,
+       o.estado                                    AS estado_orden,
+       o.costo_total,
+       IFNULL(pg.total_aprobado, 0)                AS total_abonado_pagado,
+       o.costo_total - IFNULL(pg.total_aprobado, 0) AS saldo_pendiente,
+       IFNULL(pg.num_pagos, 0)                     AS num_pagos_aprobados,
+       CASE
+            WHEN o.estado = 'Cancelada'                          THEN 'Cancelada'
+            WHEN IFNULL(pg.total_aprobado, 0) >= o.costo_total   THEN 'Pagada'
+            WHEN IFNULL(pg.total_aprobado, 0) > 0                THEN 'Abonada'
+            ELSE 'Pendiente'
+       END                                         AS estado_calculado
+FROM Orden_Pago o
+INNER JOIN Cliente cl ON cl.id_cliente = o.id_cliente
+LEFT JOIN (
+        SELECT id_orden_pago,
+               SUM(monto) AS total_aprobado,
+               COUNT(*)   AS num_pagos
+          FROM Pago
+         WHERE estado = 'Aprobado'
+         GROUP BY id_orden_pago
+     ) pg ON pg.id_orden_pago = o.id_orden_pago;
+
+SELECT * FROM vw_resumen_ordenes_pago ORDER BY id_orden_pago;
+
+
+CREATE OR REPLACE VIEW vw_actividad_usuarios AS
+SELECT u.id_usuario,
+       u.nombre AS usuario,
+       u.rol,
+       u.estado,
+       (SELECT COUNT(*)          FROM Sesion s    WHERE s.id_usuario = u.id_usuario) AS total_sesiones,
+       (SELECT MAX(s.fecha_inicio) FROM Sesion s  WHERE s.id_usuario = u.id_usuario) AS ultima_sesion,
+       (SELECT COUNT(*)          FROM Historial h WHERE h.id_usuario = u.id_usuario) AS total_modificaciones,
+       (SELECT COUNT(*)          FROM Reporte r   WHERE r.id_usuario = u.id_usuario) AS total_reportes
+FROM Usuario u;
+
+SELECT * FROM vw_actividad_usuarios ORDER BY id_usuario;
+
+
+
+SELECT id_orden_pago, estado_orden, estado_calculado
+FROM vw_resumen_ordenes_pago
+WHERE estado_orden <> estado_calculado;
+
+
+SELECT a.id_alerta, a.id_producto, a.cantidad_registrada,
+       i.cantidad_disponible, i.stock_minimo
+FROM Alerta_Stock a
+INNER JOIN Inventario i ON i.id_producto = a.id_producto
+WHERE a.estado = 'Activa'
+  AND i.cantidad_disponible > i.stock_minimo;
 
 
 
@@ -1000,3 +1116,73 @@ END$$
 
 
 DELIMITER ;
+
+
+USE sgm_arif;
+
+
+UPDATE Producto
+SET precio_unitario = 27000
+WHERE id_producto = 1;
+
+
+UPDATE Inventario
+SET stock_minimo = 4,
+    fecha_actualizacion = CURRENT_TIMESTAMP
+WHERE id_inventario = 3;
+
+
+UPDATE Servicio
+SET estado = 'Entregado',
+    fecha_entrega = '2026-11-25 10:00:00'
+WHERE id_servicio = 6;
+
+
+UPDATE Aparato
+SET estado = 'Entregado'
+WHERE id_aparato = 6;
+
+
+UPDATE Alerta_Stock
+SET estado = 'Atendida'
+WHERE id_alerta = 9;
+
+SELECT id_producto, nombre, precio_unitario FROM Producto WHERE id_producto = 1;
+SELECT id_inventario, id_producto, cantidad_disponible, stock_minimo FROM Inventario WHERE id_inventario = 3;
+SELECT id_servicio, estado, fecha_entrega FROM Servicio WHERE id_servicio = 6;
+SELECT id_aparato, estado FROM Aparato WHERE id_aparato = 6;
+SELECT id_alerta, id_producto, estado FROM Alerta_Stock WHERE id_alerta = 9;
+-- El UPDATE 1 tambien debio generar una fila nueva en Historial:
+SELECT * FROM Historial ORDER BY id_historial DESC LIMIT 1;
+
+
+
+DELETE FROM Proveedor
+WHERE id_proveedor = 10;
+
+
+DELETE FROM Metodo_Pago
+WHERE id_metodo_pago = 8;
+
+
+DELETE FROM Pasarela_Pago
+WHERE id_pasarela = 10;
+
+
+DELETE FROM Reporte
+WHERE id_reporte = 9;
+
+
+DELETE FROM Alerta_Stock
+WHERE id_alerta = 1;
+
+
+SELECT * FROM Proveedor     WHERE id_proveedor   = 10;
+SELECT * FROM Metodo_Pago   WHERE id_metodo_pago = 8;
+SELECT * FROM Pasarela_Pago WHERE id_pasarela    = 10;
+SELECT * FROM Reporte       WHERE id_reporte     = 9;
+SELECT * FROM Alerta_Stock  WHERE id_alerta      = 1;
+
+
+
+
