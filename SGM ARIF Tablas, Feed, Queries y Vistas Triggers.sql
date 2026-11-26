@@ -617,125 +617,6 @@ INSERT INTO Reporte (id_reporte, id_usuario, tipo, fecha_reporte, datos, formato
   (8, 2, 'Stock mínimo', '2026-11-20 08:15:00', 'Productos en o bajo el stock mínimo', 'CSV', '2026-11-20 08:20:00'),
   (9, 9, 'Existencias', '2026-11-22 17:30:00', 'Existencias por categoría', NULL, NULL),
   (10, 2, 'Stock mínimo', '2026-11-24 08:10:00', 'Alertas activas de stock mínimo', 'PDF', '2026-11-24 08:14:00');
-USE sgm_arif;
-SET NAMES utf8mb4;
-
-
-CREATE OR REPLACE VIEW vw_catalogo_inventario AS
-SELECT p.id_producto,
-       p.nombre                              AS producto,
-       c.nombre                              AS categoria,
-       IFNULL(pr.nombre, 'Sin proveedor')    AS proveedor,
-       p.precio_unitario,
-       p.estado                              AS estado_producto,
-       i.cantidad_disponible,
-       i.stock_minimo,
-       i.ubicacion,
-       CASE
-            WHEN i.cantidad_disponible = 0                  THEN 'Agotado'
-            WHEN i.cantidad_disponible <= i.stock_minimo    THEN 'Stock bajo'
-            ELSE 'Disponible'
-       END                                   AS estado_stock,
-       (SELECT COUNT(*)
-          FROM Alerta_Stock a
-         WHERE a.id_producto = p.id_producto
-           AND a.estado = 'Activa')          AS alertas_activas
-FROM Producto p
-INNER JOIN Categoria c   ON c.id_categoria = p.id_categoria
-LEFT  JOIN Proveedor pr  ON pr.id_proveedor = p.id_proveedor
-INNER JOIN Inventario i  ON i.id_producto = p.id_producto;
-
-SELECT * FROM vw_catalogo_inventario ORDER BY categoria, producto;
-
-
-CREATE OR REPLACE VIEW vw_servicios_tecnicos AS
-SELECT s.id_servicio,
-       s.fecha_ingreso,
-       s.fecha_entrega,
-       s.id_cliente,
-       cl.nombre                               AS cliente,
-       a.tipo                                  AS tipo_equipo,
-       a.marca,
-       a.modelo,
-       a.falla_reportada,
-       s.diagnostico,
-       s.estado                                AS estado_servicio,
-       s.valor_servicio,
-       s.id_tecnico,
-       IFNULL(tec.nombre, 'Sin asignar')       AS tecnico,
-       IFNULL(tec.especialidad, 'N/A')         AS especialidad,
-       e.calificacion                          AS calificacion_encuesta
-FROM Servicio s
-INNER JOIN Cliente cl               ON cl.id_cliente = s.id_cliente
-INNER JOIN Aparato a                ON a.id_aparato  = s.id_aparato
-LEFT  JOIN Usuario tec              ON tec.id_usuario = s.id_tecnico
-LEFT  JOIN Encuesta_Satisfaccion e  ON e.id_servicio = s.id_servicio;
-
-SELECT * FROM vw_servicios_tecnicos ORDER BY fecha_ingreso DESC;
-
-
-
-CREATE OR REPLACE VIEW vw_resumen_ordenes_pago AS
-SELECT o.id_orden_pago,
-       o.fecha_orden,
-       cl.nombre                                   AS cliente,
-       CASE WHEN o.id_venta IS NOT NULL
-            THEN CONCAT('Venta #', o.id_venta)
-            ELSE CONCAT('Servicio #', o.id_servicio)
-       END                                         AS origen,
-       o.estado                                    AS estado_orden,
-       o.costo_total,
-       IFNULL(pg.total_aprobado, 0)                AS total_abonado_pagado,
-       o.costo_total - IFNULL(pg.total_aprobado, 0) AS saldo_pendiente,
-       IFNULL(pg.num_pagos, 0)                     AS num_pagos_aprobados,
-       CASE
-            WHEN o.estado = 'Cancelada'                          THEN 'Cancelada'
-            WHEN IFNULL(pg.total_aprobado, 0) >= o.costo_total   THEN 'Pagada'
-            WHEN IFNULL(pg.total_aprobado, 0) > 0                THEN 'Abonada'
-            ELSE 'Pendiente'
-       END                                         AS estado_calculado
-FROM Orden_Pago o
-INNER JOIN Cliente cl ON cl.id_cliente = o.id_cliente
-LEFT JOIN (
-        SELECT id_orden_pago,
-               SUM(monto) AS total_aprobado,
-               COUNT(*)   AS num_pagos
-          FROM Pago
-         WHERE estado = 'Aprobado'
-         GROUP BY id_orden_pago
-     ) pg ON pg.id_orden_pago = o.id_orden_pago;
-
-SELECT * FROM vw_resumen_ordenes_pago ORDER BY id_orden_pago;
-
-
-CREATE OR REPLACE VIEW vw_actividad_usuarios AS
-SELECT u.id_usuario,
-       u.nombre AS usuario,
-       u.rol,
-       u.estado,
-       (SELECT COUNT(*)          FROM Sesion s    WHERE s.id_usuario = u.id_usuario) AS total_sesiones,
-       (SELECT MAX(s.fecha_inicio) FROM Sesion s  WHERE s.id_usuario = u.id_usuario) AS ultima_sesion,
-       (SELECT COUNT(*)          FROM Historial h WHERE h.id_usuario = u.id_usuario) AS total_modificaciones,
-       (SELECT COUNT(*)          FROM Reporte r   WHERE r.id_usuario = u.id_usuario) AS total_reportes
-FROM Usuario u;
-
-SELECT * FROM vw_actividad_usuarios ORDER BY id_usuario;
-
-
-
-SELECT id_orden_pago, estado_orden, estado_calculado
-FROM vw_resumen_ordenes_pago
-WHERE estado_orden <> estado_calculado;
-
-
-SELECT a.id_alerta, a.id_producto, a.cantidad_registrada,
-       i.cantidad_disponible, i.stock_minimo
-FROM Alerta_Stock a
-INNER JOIN Inventario i ON i.id_producto = a.id_producto
-WHERE a.estado = 'Activa'
-  AND i.cantidad_disponible > i.stock_minimo;
-
-
 
 USE sgm_arif;
 SET NAMES utf8mb4;
@@ -827,7 +708,12 @@ LEFT JOIN Historial h ON h.id_usuario = u.id_usuario
 LEFT JOIN Reporte r   ON r.id_usuario = u.id_usuario;
 
 
-CREATE OR REPLACE VIEW vw_catalogo_inventario AS
+
+
+USE sgm_arif;
+SET NAMES utf8mb4;
+
+CREATE OR REPLACE VIEW vw_1_catalogo_inventario_alertas AS
 SELECT p.id_producto,
        p.nombre AS producto,
        c.nombre AS categoria,
@@ -835,56 +721,100 @@ SELECT p.id_producto,
        p.precio_unitario,
        i.cantidad_disponible,
        i.stock_minimo,
-       i.ubicacion,
-       CASE WHEN i.cantidad_disponible <= i.stock_minimo THEN 'Stock bajo' ELSE 'Disponible' END AS estado_stock
+       a.estado AS estado_alerta
 FROM Producto p
-INNER JOIN Categoria c   ON c.id_categoria = p.id_categoria
-LEFT JOIN Proveedor pr   ON pr.id_proveedor = p.id_proveedor
-INNER JOIN Inventario i  ON i.id_producto = p.id_producto;
+INNER JOIN Categoria c    ON c.id_categoria = p.id_categoria
+LEFT JOIN Proveedor pr    ON pr.id_proveedor = p.id_proveedor
+INNER JOIN Inventario i   ON i.id_producto = p.id_producto
+LEFT JOIN Alerta_Stock a  ON a.id_producto = p.id_producto;
 
-SELECT * FROM vw_catalogo_inventario ORDER BY categoria, producto;
+SELECT * FROM vw_1_catalogo_inventario_alertas;
 
+CREATE OR REPLACE VIEW vw_2_compras_movimientos AS
+SELECT co.id_compra,
+       co.fecha_compra,
+       co.estado_compra,
+       mp.nombre AS metodo_pago,
+       dc.cantidad AS cantidad_comprada,
+       dc.subtotal,
+       m.tipo_movimiento,
+       m.motivo,
+       u.nombre AS registrado_por
+FROM Compra co
+INNER JOIN Metodo_Pago mp          ON mp.id_metodo_pago = co.id_metodo_pago
+INNER JOIN Detalle_Compra dc       ON dc.id_compra = co.id_compra
+LEFT JOIN Movimiento_Inventario m  ON m.id_detalle_compra = dc.id_detalle_compra
+INNER JOIN Usuario u               ON u.id_usuario = co.id_usuario;
 
-CREATE OR REPLACE VIEW vw_servicios_tecnicos AS
+SELECT * FROM vw_2_compras_movimientos;
+
+CREATE OR REPLACE VIEW vw_3_ventas_ordenes_pago AS
+SELECT v.id_venta,
+       v.fecha_venta,
+       v.estado_venta,
+       cl.nombre AS cliente,
+       dv.cantidad AS unidades_vendidas,
+       dv.subtotal,
+       o.id_orden_pago,
+       o.estado AS estado_orden
+FROM Venta v
+INNER JOIN Cliente cl        ON cl.id_cliente = v.id_cliente
+INNER JOIN Detalle_Venta dv  ON dv.id_venta = v.id_venta
+LEFT JOIN Orden_Pago o       ON o.id_venta = v.id_venta;
+
+SELECT * FROM vw_3_ventas_ordenes_pago;
+
+CREATE OR REPLACE VIEW vw_4_servicios_encuestas AS
 SELECT s.id_servicio,
        s.fecha_ingreso,
-       s.fecha_entrega,
-       cl.nombre AS cliente,
+       s.estado AS estado_servicio,
+       s.valor_servicio,
        a.tipo AS tipo_equipo,
        a.marca,
        a.modelo,
        a.falla_reportada,
-       s.diagnostico,
-       s.estado AS estado_servicio,
-       s.valor_servicio,
-       tec.nombre AS tecnico,
-       tec.especialidad,
-       e.calificacion AS calificacion_encuesta
+       e.calificacion,
+       e.comentarios
 FROM Servicio s
-INNER JOIN Cliente cl               ON cl.id_cliente = s.id_cliente
-INNER JOIN Aparato a                ON a.id_aparato = s.id_aparato
-LEFT JOIN Usuario tec               ON tec.id_usuario = s.id_tecnico
-LEFT JOIN Encuesta_Satisfaccion e ON e.id_servicio = s.id_servicio;
+INNER JOIN Aparato a               ON a.id_aparato = s.id_aparato
+LEFT JOIN Encuesta_Satisfaccion e  ON e.id_servicio = s.id_servicio;
 
-SELECT * FROM vw_servicios_tecnicos ORDER BY fecha_ingreso DESC;
+SELECT * FROM vw_4_servicios_encuestas;
+
+CREATE OR REPLACE VIEW vw_5_pagos_pasarelas_recibos AS
+SELECT pg.id_pago,
+       pg.fecha_pago,
+       pg.tipo_pago,
+       pg.monto,
+       pg.estado AS estado_pago,
+       IFNULL(pas.nombre_pasarela, 'Presencial (sin pasarela)') AS pasarela,
+       r.numero_recibo,
+       r.canal_envio,
+       r.estado_envio
+FROM Pago pg
+LEFT JOIN Pasarela_Pago pas ON pas.id_pasarela = pg.id_pasarela
+LEFT JOIN Recibo r          ON r.id_pago = pg.id_pago;
+
+SELECT * FROM vw_5_pagos_pasarelas_recibos;
+
+CREATE OR REPLACE VIEW vw_6_actividad_usuarios AS
+SELECT u.id_usuario,
+       u.nombre AS usuario,
+       u.rol,
+       s.id_sesion,
+       s.fecha_inicio,
+       h.tabla_afectada,
+       h.tipo_modificacion,
+       r.tipo AS tipo_reporte,
+       r.formato_exportacion
+FROM Usuario u
+LEFT JOIN Sesion s    ON s.id_usuario = u.id_usuario
+LEFT JOIN Historial h ON h.id_usuario = u.id_usuario
+LEFT JOIN Reporte r   ON r.id_usuario = u.id_usuario;
+
+SELECT * FROM vw_6_actividad_usuarios;
 
 
-CREATE OR REPLACE VIEW vw_resumen_ordenes_pago AS
-SELECT o.id_orden_pago,
-       o.fecha_orden,
-       cl.nombre AS cliente,
-       CASE WHEN o.id_venta IS NOT NULL THEN CONCAT('Venta #', o.id_venta)
-            ELSE CONCAT('Servicio #', o.id_servicio) END AS origen,
-       o.estado AS estado_orden,
-       o.costo_total,
-       IFNULL(SUM(CASE WHEN pg.estado = 'Aprobado' THEN pg.monto END), 0) AS total_abonado_pagado,
-       o.costo_total - IFNULL(SUM(CASE WHEN pg.estado = 'Aprobado' THEN pg.monto END), 0) AS saldo_pendiente
-FROM Orden_Pago o
-INNER JOIN Cliente cl ON cl.id_cliente = o.id_cliente
-LEFT JOIN Pago pg     ON pg.id_orden_pago = o.id_orden_pago
-GROUP BY o.id_orden_pago, o.fecha_orden, cl.nombre, o.id_venta, o.id_servicio, o.estado, o.costo_total;
-
-SELECT * FROM vw_resumen_ordenes_pago ORDER BY id_orden_pago;                                    
 
 USE sgm_arif;
 
@@ -1114,64 +1044,53 @@ BEGIN
     END IF;
 END$$
 
-
 DELIMITER ;
 
 
 USE sgm_arif;
 
-
 UPDATE Producto
 SET precio_unitario = 27000
 WHERE id_producto = 1;
-
 
 UPDATE Inventario
 SET stock_minimo = 4,
     fecha_actualizacion = CURRENT_TIMESTAMP
 WHERE id_inventario = 3;
 
-
 UPDATE Servicio
 SET estado = 'Entregado',
     fecha_entrega = '2026-11-25 10:00:00'
 WHERE id_servicio = 6;
 
-
 UPDATE Aparato
 SET estado = 'Entregado'
 WHERE id_aparato = 6;
 
-
 UPDATE Alerta_Stock
 SET estado = 'Atendida'
 WHERE id_alerta = 9;
+
 
 SELECT id_producto, nombre, precio_unitario FROM Producto WHERE id_producto = 1;
 SELECT id_inventario, id_producto, cantidad_disponible, stock_minimo FROM Inventario WHERE id_inventario = 3;
 SELECT id_servicio, estado, fecha_entrega FROM Servicio WHERE id_servicio = 6;
 SELECT id_aparato, estado FROM Aparato WHERE id_aparato = 6;
 SELECT id_alerta, id_producto, estado FROM Alerta_Stock WHERE id_alerta = 9;
--- El UPDATE 1 tambien debio generar una fila nueva en Historial:
 SELECT * FROM Historial ORDER BY id_historial DESC LIMIT 1;
-
 
 
 DELETE FROM Proveedor
 WHERE id_proveedor = 10;
 
-
 DELETE FROM Metodo_Pago
 WHERE id_metodo_pago = 8;
-
 
 DELETE FROM Pasarela_Pago
 WHERE id_pasarela = 10;
 
-
 DELETE FROM Reporte
 WHERE id_reporte = 9;
-
 
 DELETE FROM Alerta_Stock
 WHERE id_alerta = 1;
@@ -1182,215 +1101,3 @@ SELECT * FROM Metodo_Pago   WHERE id_metodo_pago = 8;
 SELECT * FROM Pasarela_Pago WHERE id_pasarela    = 10;
 SELECT * FROM Reporte       WHERE id_reporte     = 9;
 SELECT * FROM Alerta_Stock  WHERE id_alerta      = 1;
-
-USE sgm_arif;
-
-DROP VIEW IF EXISTS vw_proveedores;
-DROP VIEW IF EXISTS vw_clientes;
-DROP VIEW IF EXISTS vw_usuarios;
-DROP VIEW IF EXISTS vw_sesiones;
-DROP VIEW IF EXISTS vw_categorias;
-DROP VIEW IF EXISTS vw_productos;
-DROP VIEW IF EXISTS vw_metodos_pago;
-DROP VIEW IF EXISTS vw_pasarelas_pago;
-DROP VIEW IF EXISTS vw_compras;
-DROP VIEW IF EXISTS vw_detalle_compras;
-DROP VIEW IF EXISTS vw_ventas;
-DROP VIEW IF EXISTS vw_detalle_ventas;
-DROP VIEW IF EXISTS vw_movimientos_inventario;
-DROP VIEW IF EXISTS vw_inventario;
-DROP VIEW IF EXISTS vw_alertas_stock;
-DROP VIEW IF EXISTS vw_aparatos;
-
-CREATE VIEW vw_proveedores AS
-SELECT id_proveedor, nombre, telefono, correo, direccion, estado
-FROM Proveedor;
-
-CREATE VIEW vw_clientes AS
-SELECT id_cliente, nombre, correo, telefono, direccion, contrasena_hash
-FROM Cliente;
-
-CREATE VIEW vw_usuarios AS
-SELECT id_usuario, nombre, correo, contrasena_hash, rol, departamento, especialidad, estado
-FROM Usuario;
-
-CREATE VIEW vw_sesiones AS
-SELECT id_sesion, id_usuario, id_cliente, fecha_inicio, fecha_fin
-FROM Sesion;
-
-CREATE VIEW vw_categorias AS
-SELECT id_categoria, nombre, descripcion
-FROM Categoria;
-
-CREATE VIEW vw_productos AS
-SELECT id_producto, id_categoria, id_proveedor, nombre, descripcion, precio_unitario, estado
-FROM Producto;
-
-CREATE VIEW vw_metodos_pago AS
-SELECT id_metodo_pago, nombre, requiere_pasarela, estado
-FROM Metodo_Pago;
-
-CREATE VIEW vw_pasarelas_pago AS
-SELECT id_pasarela, nombre_pasarela, estado
-FROM Pasarela_Pago;
-
-CREATE VIEW vw_compras AS
-SELECT id_compra, id_proveedor, id_usuario, id_metodo_pago, fecha_compra, fecha_confirmacion, total_compra, estado_compra
-FROM Compra;
-
-CREATE VIEW vw_detalle_compras AS
-SELECT id_detalle_compra, id_compra, id_producto, cantidad, valor_unitario, subtotal, stock_actual
-FROM Detalle_Compra;
-
-CREATE VIEW vw_ventas AS
-SELECT id_venta, id_cliente, id_usuario, fecha_venta, fecha_confirmacion, total_venta, estado_venta
-FROM Venta;
-
-CREATE VIEW vw_detalle_ventas AS
-SELECT id_detalle_venta, id_venta, id_producto, cantidad, valor_unitario, subtotal
-FROM Detalle_Venta;
-
-CREATE VIEW vw_movimientos_inventario AS
-SELECT id_movimiento, id_producto, id_usuario, id_detalle_compra, id_detalle_venta, tipo_movimiento, motivo, cantidad, fecha_movimiento, observaciones
-FROM Movimiento_Inventario;
-
-CREATE VIEW vw_inventario AS
-SELECT id_inventario, id_producto, cantidad_disponible, stock_minimo, ubicacion, fecha_actualizacion
-FROM Inventario;
-
-CREATE VIEW vw_alertas_stock AS
-SELECT id_alerta, id_producto, id_movimiento, cantidad_registrada, fecha_alerta, estado
-FROM Alerta_Stock;
-
-CREATE VIEW vw_aparatos AS
-SELECT id_aparato, id_cliente, tipo, marca, modelo, numero_serie, falla_reportada, estado
-
-  USE sgm_arif;
-
-CREATE OR REPLACE VIEW vw_detalle_compras_completo AS
-SELECT dc.id_detalle_compra,
-       c.id_compra,
-       c.fecha_compra,
-       c.estado_compra,
-       pr.nombre AS proveedor,
-       u.nombre AS usuario_registra,
-       mp.nombre AS metodo_pago,
-       p.nombre AS producto,
-       cat.nombre AS categoria,
-       dc.cantidad,
-       dc.valor_unitario,
-       dc.subtotal,
-       dc.stock_actual
-FROM Detalle_Compra dc
-INNER JOIN Compra c          ON c.id_compra = dc.id_compra
-INNER JOIN Proveedor pr      ON pr.id_proveedor = c.id_proveedor
-INNER JOIN Usuario u         ON u.id_usuario = c.id_usuario
-INNER JOIN Metodo_Pago mp    ON mp.id_metodo_pago = c.id_metodo_pago
-INNER JOIN Producto p        ON p.id_producto = dc.id_producto
-INNER JOIN Categoria cat     ON cat.id_categoria = p.id_categoria;
-
-SELECT * FROM vw_detalle_compras_completo ORDER BY id_detalle_compra;
-
-CREATE OR REPLACE VIEW vw_detalle_ventas_completo AS
-SELECT dv.id_detalle_venta,
-       v.id_venta,
-       v.fecha_venta,
-       v.estado_venta,
-       cl.nombre AS cliente,
-       u.nombre AS usuario_atiende,
-       p.nombre AS producto,
-       cat.nombre AS categoria,
-       dv.cantidad,
-       dv.valor_unitario,
-       dv.subtotal
-FROM Detalle_Venta dv
-INNER JOIN Venta v           ON v.id_venta = dv.id_venta
-INNER JOIN Cliente cl        ON cl.id_cliente = v.id_cliente
-INNER JOIN Usuario u         ON u.id_usuario = v.id_usuario
-INNER JOIN Producto p        ON p.id_producto = dv.id_producto
-INNER JOIN Categoria cat     ON cat.id_categoria = p.id_categoria;
-
-SELECT * FROM vw_detalle_ventas_completo ORDER BY id_detalle_venta;
-
-CREATE OR REPLACE VIEW vw_estado_inventario_productos AS
-SELECT i.id_inventario,
-       p.id_producto,
-       p.nombre AS producto,
-       cat.nombre AS categoria,
-       pr.nombre AS proveedor,
-       i.ubicacion,
-       i.cantidad_disponible,
-       i.stock_minimo,
-       CASE WHEN i.cantidad_disponible <= i.stock_minimo THEN 'Bajo stock'
-            ELSE 'Normal' END AS nivel_stock,
-       p.precio_unitario,
-       i.cantidad_disponible * p.precio_unitario AS valor_inventario,
-       i.fecha_actualizacion
-FROM Inventario i
-INNER JOIN Producto p        ON p.id_producto = i.id_producto
-INNER JOIN Categoria cat     ON cat.id_categoria = p.id_categoria
-LEFT JOIN Proveedor pr       ON pr.id_proveedor = p.id_proveedor;
-
-SELECT * FROM vw_estado_inventario_productos ORDER BY id_producto;
-
-CREATE OR REPLACE VIEW vw_movimientos_inventario_detalle AS
-SELECT m.id_movimiento,
-       m.fecha_movimiento,
-       p.nombre AS producto,
-       u.nombre AS usuario,
-       m.tipo_movimiento,
-       m.motivo,
-       CASE WHEN m.id_detalle_compra IS NOT NULL THEN CONCAT('Detalle Compra #', m.id_detalle_compra)
-            WHEN m.id_detalle_venta  IS NOT NULL THEN CONCAT('Detalle Venta #', m.id_detalle_venta)
-            ELSE 'Movimiento directo' END AS referencia_origen,
-       m.cantidad,
-       m.observaciones
-FROM Movimiento_Inventario m
-INNER JOIN Producto p        ON p.id_producto = m.id_producto
-INNER JOIN Usuario u         ON u.id_usuario = m.id_usuario;
-
-SELECT * FROM vw_movimientos_inventario_detalle ORDER BY id_movimiento;
-
-CREATE OR REPLACE VIEW vw_resumen_pagos_recibos AS
-SELECT pg.id_pago,
-       pg.fecha_pago,
-       o.id_orden_pago,
-       cl.nombre AS cliente,
-       CASE WHEN o.id_venta IS NOT NULL THEN CONCAT('Venta #', o.id_venta)
-            ELSE CONCAT('Servicio #', o.id_servicio) END AS origen,
-       mp.nombre AS metodo_pago,
-       IFNULL(ps.nombre_pasarela, 'Sin pasarela') AS pasarela,
-       pg.tipo_pago,
-       pg.monto,
-       pg.estado AS estado_pago,
-       IFNULL(r.numero_recibo, 'Sin recibo') AS numero_recibo,
-       IFNULL(r.estado_envio, 'No enviado') AS estado_envio_recibo
-FROM Pago pg
-INNER JOIN Orden_Pago o      ON o.id_orden_pago = pg.id_orden_pago
-INNER JOIN Cliente cl        ON cl.id_cliente = o.id_cliente
-INNER JOIN Metodo_Pago mp    ON mp.id_metodo_pago = pg.id_metodo_pago
-LEFT JOIN Pasarela_Pago ps   ON ps.id_pasarela = pg.id_pasarela
-LEFT JOIN Recibo r           ON r.id_pago = pg.id_pago;
-
-SELECT * FROM vw_resumen_pagos_recibos ORDER BY id_pago;
-
-CREATE OR REPLACE VIEW vw_resumen_ordenes_pago AS
-SELECT o.id_orden_pago,
-       o.fecha_orden,
-       cl.nombre AS cliente,
-       CASE WHEN o.id_venta IS NOT NULL THEN CONCAT('Venta #', o.id_venta)
-            ELSE CONCAT('Servicio #', o.id_servicio) END AS origen,
-       o.estado AS estado_orden,
-       o.costo_total,
-       IFNULL(SUM(CASE WHEN pg.estado = 'Aprobado' THEN pg.monto END), 0) AS total_abonado_pagado,
-       o.costo_total - IFNULL(SUM(CASE WHEN pg.estado = 'Aprobado' THEN pg.monto END), 0) AS saldo_pendiente
-FROM Orden_Pago o
-INNER JOIN Cliente cl ON cl.id_cliente = o.id_cliente
-LEFT JOIN Pago pg     ON pg.id_orden_pago = o.id_orden_pago
-GROUP BY o.id_orden_pago, o.fecha_orden, cl.nombre, o.id_venta, o.id_servicio, o.estado, o.costo_total;
-
-SELECT * FROM vw_resumen_ordenes_pago ORDER BY id_orden_pago;
-FROM Aparato;
-
-
-
