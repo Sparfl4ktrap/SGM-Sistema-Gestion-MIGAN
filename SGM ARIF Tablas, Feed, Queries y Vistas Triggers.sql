@@ -1183,6 +1183,8 @@ SELECT * FROM Pasarela_Pago WHERE id_pasarela    = 10;
 SELECT * FROM Reporte       WHERE id_reporte     = 9;
 SELECT * FROM Alerta_Stock  WHERE id_alerta      = 1;
 
+USE sgm_arif;
+
 DROP VIEW IF EXISTS vw_proveedores;
 DROP VIEW IF EXISTS vw_clientes;
 DROP VIEW IF EXISTS vw_usuarios;
@@ -1201,53 +1203,68 @@ DROP VIEW IF EXISTS vw_alertas_stock;
 DROP VIEW IF EXISTS vw_aparatos;
 
 CREATE VIEW vw_proveedores AS
-SELECT * FROM Proveedor;
+SELECT id_proveedor, nombre, telefono, correo, direccion, estado
+FROM Proveedor;
 
 CREATE VIEW vw_clientes AS
-SELECT * FROM Cliente;
+SELECT id_cliente, nombre, correo, telefono, direccion, contrasena_hash
+FROM Cliente;
 
 CREATE VIEW vw_usuarios AS
-SELECT * FROM Usuario;
+SELECT id_usuario, nombre, correo, contrasena_hash, rol, departamento, especialidad, estado
+FROM Usuario;
 
 CREATE VIEW vw_sesiones AS
-SELECT * FROM Sesion;
+SELECT id_sesion, id_usuario, id_cliente, fecha_inicio, fecha_fin
+FROM Sesion;
 
 CREATE VIEW vw_categorias AS
-SELECT * FROM Categoria;
+SELECT id_categoria, nombre, descripcion
+FROM Categoria;
 
 CREATE VIEW vw_productos AS
-SELECT * FROM Producto;
+SELECT id_producto, id_categoria, id_proveedor, nombre, descripcion, precio_unitario, estado
+FROM Producto;
 
 CREATE VIEW vw_metodos_pago AS
-SELECT * FROM Metodo_Pago;
+SELECT id_metodo_pago, nombre, requiere_pasarela, estado
+FROM Metodo_Pago;
 
 CREATE VIEW vw_pasarelas_pago AS
-SELECT * FROM Pasarela_Pago;
+SELECT id_pasarela, nombre_pasarela, estado
+FROM Pasarela_Pago;
 
 CREATE VIEW vw_compras AS
-SELECT * FROM Compra;
+SELECT id_compra, id_proveedor, id_usuario, id_metodo_pago, fecha_compra, fecha_confirmacion, total_compra, estado_compra
+FROM Compra;
 
 CREATE VIEW vw_detalle_compras AS
-SELECT * FROM Detalle_Compra;
+SELECT id_detalle_compra, id_compra, id_producto, cantidad, valor_unitario, subtotal, stock_actual
+FROM Detalle_Compra;
 
 CREATE VIEW vw_ventas AS
-SELECT * FROM Venta;
+SELECT id_venta, id_cliente, id_usuario, fecha_venta, fecha_confirmacion, total_venta, estado_venta
+FROM Venta;
 
 CREATE VIEW vw_detalle_ventas AS
-SELECT * FROM Detalle_Venta;
+SELECT id_detalle_venta, id_venta, id_producto, cantidad, valor_unitario, subtotal
+FROM Detalle_Venta;
 
 CREATE VIEW vw_movimientos_inventario AS
-SELECT * FROM Movimiento_Inventario;
+SELECT id_movimiento, id_producto, id_usuario, id_detalle_compra, id_detalle_venta, tipo_movimiento, motivo, cantidad, fecha_movimiento, observaciones
+FROM Movimiento_Inventario;
 
 CREATE VIEW vw_inventario AS
-SELECT * FROM Inventario;
+SELECT id_inventario, id_producto, cantidad_disponible, stock_minimo, ubicacion, fecha_actualizacion
+FROM Inventario;
 
 CREATE VIEW vw_alertas_stock AS
-SELECT * FROM Alerta_Stock;
+SELECT id_alerta, id_producto, id_movimiento, cantidad_registrada, fecha_alerta, estado
+FROM Alerta_Stock;
 
 CREATE VIEW vw_aparatos AS
-SELECT * FROM Aparato;
-
+SELECT id_aparato, id_cliente, tipo, marca, modelo, numero_serie, falla_reportada, estado
+FROM Aparato;
 
 
 
