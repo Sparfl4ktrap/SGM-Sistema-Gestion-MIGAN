@@ -1183,6 +1183,71 @@ SELECT * FROM Pasarela_Pago WHERE id_pasarela    = 10;
 SELECT * FROM Reporte       WHERE id_reporte     = 9;
 SELECT * FROM Alerta_Stock  WHERE id_alerta      = 1;
 
+DROP VIEW IF EXISTS vw_proveedores;
+DROP VIEW IF EXISTS vw_clientes;
+DROP VIEW IF EXISTS vw_usuarios;
+DROP VIEW IF EXISTS vw_sesiones;
+DROP VIEW IF EXISTS vw_categorias;
+DROP VIEW IF EXISTS vw_productos;
+DROP VIEW IF EXISTS vw_metodos_pago;
+DROP VIEW IF EXISTS vw_pasarelas_pago;
+DROP VIEW IF EXISTS vw_compras;
+DROP VIEW IF EXISTS vw_detalle_compras;
+DROP VIEW IF EXISTS vw_ventas;
+DROP VIEW IF EXISTS vw_detalle_ventas;
+DROP VIEW IF EXISTS vw_movimientos_inventario;
+DROP VIEW IF EXISTS vw_inventario;
+DROP VIEW IF EXISTS vw_alertas_stock;
+DROP VIEW IF EXISTS vw_aparatos;
+
+CREATE VIEW vw_proveedores AS
+SELECT * FROM Proveedor;
+
+CREATE VIEW vw_clientes AS
+SELECT * FROM Cliente;
+
+CREATE VIEW vw_usuarios AS
+SELECT * FROM Usuario;
+
+CREATE VIEW vw_sesiones AS
+SELECT * FROM Sesion;
+
+CREATE VIEW vw_categorias AS
+SELECT * FROM Categoria;
+
+CREATE VIEW vw_productos AS
+SELECT * FROM Producto;
+
+CREATE VIEW vw_metodos_pago AS
+SELECT * FROM Metodo_Pago;
+
+CREATE VIEW vw_pasarelas_pago AS
+SELECT * FROM Pasarela_Pago;
+
+CREATE VIEW vw_compras AS
+SELECT * FROM Compra;
+
+CREATE VIEW vw_detalle_compras AS
+SELECT * FROM Detalle_Compra;
+
+CREATE VIEW vw_ventas AS
+SELECT * FROM Venta;
+
+CREATE VIEW vw_detalle_ventas AS
+SELECT * FROM Detalle_Venta;
+
+CREATE VIEW vw_movimientos_inventario AS
+SELECT * FROM Movimiento_Inventario;
+
+CREATE VIEW vw_inventario AS
+SELECT * FROM Inventario;
+
+CREATE VIEW vw_alertas_stock AS
+SELECT * FROM Alerta_Stock;
+
+CREATE VIEW vw_aparatos AS
+SELECT * FROM Aparato;
+
 
 
 
